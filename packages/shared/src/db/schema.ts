@@ -43,6 +43,17 @@ export const conversations = pgTable(
     phone: text("phone").notNull().unique(),
     displayName: text("display_name"),
     botPaused: boolean("bot_paused").notNull().default(false),
+    /** Por qué el bot se apartó y le pasó la conversación a una persona. */
+    escalationReason: text("escalation_reason"),
+    /**
+     * El pedido a medio armar. Es la memoria entre mensajes: el restaurante
+     * puede mandar la dirección en uno y el teléfono en el siguiente, y el
+     * bot no puede olvidar el primero al leer el segundo. Se vacía al crear
+     * el viaje o al escalar.
+     */
+    draft: jsonb("draft").$type<ExtractedTripFields>(),
+    /** Cuántas veces se repreguntó por el pedido en curso. */
+    failedAttempts: integer("failed_attempts").notNull().default(0),
     lastInboundAt: timestamp("last_inbound_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     lastMessageAt: timestamp("last_message_at", { withTimezone: true }).notNull().defaultNow(),
@@ -176,6 +187,9 @@ export const couriers = pgTable("couriers", {
   /** Se reinicia al cerrar turno (`SettlementView`); es el insumo del
    *  factor de equidad. */
   deliveriesThisShift: integer("deliveries_this_shift").notNull().default(0),
+  /** El turno en la cola: se asigna primero al que hace más tiempo no
+   *  recibe un viaje (round-robin). Nulo = nunca ha recibido, va primero. */
+  lastAssignedAt: timestamp("last_assigned_at", { withTimezone: true }),
   shiftStartedAt: timestamp("shift_started_at", { withTimezone: true }),
 
   active: boolean("active").notNull().default(true),

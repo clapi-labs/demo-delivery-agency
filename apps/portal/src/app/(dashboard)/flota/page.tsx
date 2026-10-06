@@ -1,10 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { AddCourierForm } from "@/components/AddCourierForm";
 import { CourierCard } from "@/components/CourierCard";
 import type { Courier } from "@/lib/types";
+import { usePolling } from "@/lib/use-polling";
+
+/** El mismo orden que usa la cola del servidor: nunca asignado primero,
+ *  después el que hace más tiempo no recibe un viaje. */
+function queueOrder(couriers: Courier[]) {
+  return couriers
+    .filter((c) => c.status === "available")
+    .sort((a, b) => {
+      if (!a.lastAssignedAt) return b.lastAssignedAt ? -1 : a.id - b.id;
+      if (!b.lastAssignedAt) return 1;
+      return a.lastAssignedAt.localeCompare(b.lastAssignedAt) || a.id - b.id;
+    })
+    .map((c) => c.id);
+}
 
 export default function FlotaPage() {
   const [couriers, setCouriers] = useState<Courier[]>([]);
@@ -14,11 +28,7 @@ export default function FlotaPage() {
     if (res.ok) setCouriers(await res.json());
   }, []);
 
-  useEffect(() => {
-    refresh();
-    const id = setInterval(refresh, 4000);
-    return () => clearInterval(id);
-  }, [refresh]);
+  usePolling(refresh, 3000);
 
   async function setStatus(id: number, status: Courier["status"]) {
     setCouriers((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)));
@@ -27,26 +37,60 @@ export default function FlotaPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
+    refresh();
   }
 
-  const available = couriers.filter((c) => c.status === "available").length;
+  const queue = queueOrder(couriers);
+  const counts = {
+    available: couriers.filter((c) => c.status === "available").length,
+    busy: couriers.filter((c) => c.status === "busy").length,
+    off: couriers.filter((c) => c.status === "paused" || c.status === "offline").length,
+  };
+  const sorted = [...couriers].sort((a, b) => {
+    const rank = (c: Courier) => (c.status === "available" ? queue.indexOf(c.id) : c.status === "busy" ? 100 : 200);
+    return rank(a) - rank(b);
+  });
 
   return (
-    <div className="flex h-full flex-col gap-5 p-6">
-      <div>
-        <h1 className="text-lg font-semibold tracking-[-0.02em] text-ink">Flota</h1>
-        <p className="text-sm text-ink-3">
-          {couriers.length} motorizados · {available} libres ahora
-        </p>
+    <div className="mx-auto flex max-w-[1500px] flex-col gap-5 px-4 py-5 lg:px-8 lg:py-7">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight lg:text-2xl">Flota</h1>
+          <p className="text-sm text-ink-3">El próximo viaje es del turno 1</p>
+        </div>
+        <AddCourierForm onCreated={refresh} />
       </div>
 
-      <AddCourierForm onCreated={refresh} />
-
-      <div className="no-scrollbar grid flex-1 grid-cols-1 gap-3 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {couriers.map((courier) => (
-          <CourierCard key={courier.id} courier={courier} onToggle={(status) => setStatus(courier.id, status)} />
+      <div className="grid grid-cols-3 gap-2 sm:max-w-md">
+        {[
+          { label: "Libres", value: counts.available, dot: "bg-ok" },
+          { label: "En viaje", value: counts.busy, dot: "bg-gold" },
+          { label: "Fuera", value: counts.off, dot: "bg-danger" },
+        ].map((s) => (
+          <div key={s.label} className="card px-3 py-2.5">
+            <p className="flex items-center gap-1.5 text-xs text-ink-3">
+              <span className={`h-2 w-2 rounded-full ${s.dot}`} /> {s.label}
+            </p>
+            <p className="text-xl font-bold tabular-nums">{s.value}</p>
+          </div>
         ))}
-        {couriers.length === 0 && <p className="col-span-full py-12 text-center text-sm text-ink-3">Todavía no hay motorizados — agrega el primero arriba.</p>}
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        {sorted.map((courier) => {
+          const pos = queue.indexOf(courier.id);
+          return (
+            <CourierCard
+              key={courier.id}
+              courier={courier}
+              queuePosition={pos >= 0 ? pos + 1 : null}
+              onChange={(status) => setStatus(courier.id, status)}
+            />
+          );
+        })}
+        {couriers.length === 0 && (
+          <p className="col-span-full py-12 text-center text-sm text-ink-3">Todavía no hay motorizados. Agrega el primero.</p>
+        )}
       </div>
     </div>
   );

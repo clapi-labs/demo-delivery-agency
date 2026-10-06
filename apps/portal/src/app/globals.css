@@ -1,84 +1,72 @@
 @import "tailwindcss";
 
 /*
- * CLAPI Dispatch — centro de control. Dark-first a propósito: esto se
- * muestra en una sala, proyectado, y tiene que leerse como un panel de
- * operaciones en vivo, no como un back-office de restaurante.
+ * Clapi Dispatch — tema claro.
  *
- * - Neutros zinc oscuros: canvas casi negro, tarjetas zinc-900 con un
- *   anillo de 1px al 8% en vez de sombra (la sombra no se ve sobre negro).
- * - Acento: el mismo naranja de marca, hsl(28 91% 58%), más brillante que
- *   en el portal claro para que siga leyéndose sobre fondo oscuro.
- * - Estados de un viaje, un solo significado cada uno:
- *     ámbar  = pendiente, esperando asignación (con pulso si lleva rato)
- *     violeta = en ruta (moto asignada, en camino)
- *     verde  = entregado
- *     rojo   = desconectado / alerta
+ * Tres capas de color, cada una con un solo trabajo:
+ * - Clapi (morado + amarillo): el cascarón. Navegación, "en ruta", detalles.
+ * - Cliente (--client, inyectado desde lib/brand.ts): su logo y la acción
+ *   principal de cada pantalla. Es lo que hace que el portal se sienta suyo.
+ * - Semánticos: verde = entregado/libre, ámbar = esperando, rojo = urgente.
+ *   Siempre con texto al lado: el color orienta, nunca es la única señal.
  */
 
 @theme inline {
-  --font-sans: var(--nf-sans), ui-sans-serif, system-ui, sans-serif;
-  --tracking-title: -0.02em;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
-  --color-surface-2: var(--surface-2);
+  --color-sunken: var(--sunken);
   --color-ink: var(--ink);
   --color-ink-2: var(--ink-2);
   --color-ink-3: var(--ink-3);
   --color-line: var(--line);
-  --color-line-strong: var(--line-strong);
 
-  --color-brand: var(--brand);
-  --color-brand-ink: var(--brand-ink);
-  --color-brand-soft: var(--brand-soft);
+  --color-clapi: var(--clapi);
+  --color-clapi-ink: var(--clapi-ink);
+  --color-clapi-soft: var(--clapi-soft);
+  --color-clapi-deep: var(--clapi-deep);
+  --color-gold: var(--gold);
+  --color-gold-ink: var(--gold-ink);
+  --color-gold-soft: var(--gold-soft);
 
-  --color-danger: var(--danger);
-  --color-danger-soft: var(--danger-soft);
-  --color-warn: var(--warn);
-  --color-warn-soft: var(--warn-soft);
+  --color-client: var(--client);
+  --color-client-soft: var(--client-soft);
+
   --color-ok: var(--ok);
   --color-ok-soft: var(--ok-soft);
-  --color-idle: var(--idle);
-  --color-idle-soft: var(--idle-soft);
-  --color-route: var(--route);
-  --color-route-soft: var(--route-soft);
-
-  --color-rail: var(--rail);
-  --color-rail-fg: var(--rail-fg);
-  --color-rail-muted: var(--rail-muted);
-  --color-rail-active: var(--rail-active);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
 }
 
 :root {
-  --canvas: #09090b; /* zinc-950 */
-  --surface: #18181b; /* zinc-900 */
-  --surface-2: #27272a; /* zinc-800, para pozos dentro de tarjetas */
-  --ink: #fafafa; /* zinc-50 */
-  --ink-2: #a1a1aa; /* zinc-400 */
-  --ink-3: #71717a; /* zinc-500 */
-  --line: rgb(255 255 255 / 0.08);
-  --line-strong: rgb(255 255 255 / 0.14);
+  --canvas: #f6f5fa;
+  --surface: #ffffff;
+  --sunken: #f1eff7;
+  --ink: #1a1530;
+  --ink-2: #57526b;
+  --ink-3: #8b869c;
+  --line: #e9e6f1;
 
-  --brand: hsl(28 91% 58%);
-  --brand-ink: hsl(28 95% 72%);
-  --brand-soft: hsl(28 70% 16%);
+  --clapi: #7c3aed;
+  --clapi-ink: #5b21b6;
+  --clapi-soft: #f3eeff;
+  --clapi-deep: #1e0b47;
+  --gold: #f5b700;
+  --gold-ink: #8a5a00;
+  --gold-soft: #fff6d6;
 
-  --danger: #f87171;
-  --danger-soft: #3f1d1d;
-  --warn: #fbbf24;
-  --warn-soft: #3f2d0f;
-  --ok: #34d399;
-  --ok-soft: #0f3326;
-  --idle: #71717a;
-  --idle-soft: #27272a;
-  --route: #a78bfa;
-  --route-soft: #2e2250;
+  --client: #e11d48;
+  --client-soft: color-mix(in srgb, var(--client) 10%, white);
 
-  --rail: #000000;
-  --rail-fg: #fafafa;
-  --rail-muted: #71717a;
-  --rail-active: #18181b;
+  --ok: #059669;
+  --ok-soft: #e9f9f2;
+  --warn: #c2710c;
+  --warn-soft: #fff6e5;
+  --danger: #dc2626;
+  --danger-soft: #fdeeee;
 }
 
 @layer base {
@@ -95,6 +83,7 @@
 
   html {
     -webkit-tap-highlight-color: transparent;
+    color-scheme: light;
   }
 
   body {
@@ -105,8 +94,15 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-brand);
+    outline: 2px solid var(--color-clapi);
     outline-offset: 2px;
+  }
+
+  /* 16px en campos: por debajo de eso iOS hace zoom al enfocar. */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -119,17 +115,20 @@
   }
 }
 
-/* Tarjeta estándar: zinc-900, rounded-xl, anillo de 1px en vez de sombra. */
+@custom-variant can-hover (@media (hover: hover) and (pointer: fine));
+
 @utility card {
   background-color: var(--color-surface);
-  border-radius: var(--radius-xl);
-  box-shadow: 0 0 0 1px var(--color-line);
+  border-radius: 14px;
+  box-shadow:
+    0 1px 2px 0 rgb(26 21 48 / 0.04),
+    0 0 0 1px var(--color-line);
 }
 
 @utility ease-ui {
   transition-property: all;
-  transition-duration: 200ms;
-  transition-timing-function: ease-in-out;
+  transition-duration: 180ms;
+  transition-timing-function: ease-out;
 }
 
 @utility no-scrollbar {
@@ -139,38 +138,9 @@
   }
 }
 
-/* El pulso de "esperando asignación" — un anillo que respira en ámbar.
- * Con prefers-reduced-motion la regla de arriba lo deja quieto. */
-@keyframes waiting-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgb(251 191 36 / 0.35);
-  }
-  50% {
-    box-shadow: 0 0 0 6px rgb(251 191 36 / 0);
-  }
-}
-
-@utility animate-waiting {
-  animation: waiting-pulse 2s ease-in-out infinite;
-}
-
-/* El destello cuando el sistema asigna solo: un barrido de luz que cruza la
- * tarjeta una vez al llegar a "En Ruta". */
-@keyframes assign-flash {
-  0% {
-    box-shadow: 0 0 0 0 rgb(167 139 250 / 0.6);
-  }
-  70% {
-    box-shadow: 0 0 0 14px rgb(167 139 250 / 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgb(167 139 250 / 0);
-  }
-}
-
-@utility animate-assign-flash {
-  animation: assign-flash 900ms ease-out 1;
+/* El espacio de la barra inferior del celular, con el área segura del iPhone. */
+@utility pb-tabbar {
+  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
 }
 
 @keyframes live-dot {
@@ -179,10 +149,44 @@
     opacity: 1;
   }
   50% {
-    opacity: 0.4;
+    opacity: 0.35;
   }
 }
-
 @utility animate-live {
   animation: live-dot 1.6s ease-in-out infinite;
+}
+
+/* El anillo que respira en un pedido que lleva rato sin moto. */
+@keyframes urgent-ring {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px var(--color-danger),
+      0 0 0 0 rgb(220 38 38 / 0.25);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px var(--color-danger),
+      0 0 0 6px rgb(220 38 38 / 0);
+  }
+}
+@utility animate-urgent {
+  animation: urgent-ring 1.8s ease-in-out infinite;
+}
+
+/* El destello de "moto asignada": un pulso morado una sola vez. */
+@keyframes assigned-pulse {
+  0% {
+    box-shadow:
+      0 0 0 1px var(--color-clapi),
+      0 0 0 0 rgb(124 58 237 / 0.45);
+  }
+  100% {
+    box-shadow:
+      0 0 0 1px var(--color-line),
+      0 0 0 14px rgb(124 58 237 / 0);
+  }
+}
+@utility animate-assigned {
+  animation: assigned-pulse 1.2s ease-out 2;
 }

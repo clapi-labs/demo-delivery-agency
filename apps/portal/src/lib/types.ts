@@ -30,7 +30,7 @@ export type Courier = {
   lng: number | null;
   locationUpdatedAt: string | null;
   deliveriesThisShift: number;
-  shiftStartedAt: string | null;
+  lastAssignedAt: string | null;
   active: boolean;
   createdAt: string;
 };
@@ -40,4 +40,31 @@ export type SettlementRow = {
   courierName: string;
   deliveredCount: number;
   cashCollected: number;
+};
+
+export type DraftFields = {
+  origenRestaurante: string | null;
+  direccionEntrega: string | null;
+  telefonoCliente: string | null;
+  valorACobrar: number | null;
+  metodoPago: PaymentMethod | null;
+};
+
+export type ConversationSummary = {
+  id: number;
+  phone: string;
+  displayName: string | null;
+  botPaused: boolean;
+  escalationReason: string | null;
+  draft: DraftFields | null;
+  lastMessageAt: string;
+  lastText: string | null;
+  lastRole: "restaurant" | "bot" | "agent" | null;
+};
+
+export type ChatMessage = {
+  id: number;
+  role: "restaurant" | "bot" | "agent";
+  text: string;
+  createdAt: string;
 };

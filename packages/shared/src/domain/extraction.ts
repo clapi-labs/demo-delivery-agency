@@ -51,14 +51,53 @@ export function requiresCashReturn(metodoPago: PaymentMethod): boolean {
   return metodoPago === "efectivo";
 }
 
-export const EXTRACTION_SYSTEM_PROMPT = `Eres un extractor de datos para una agencia de domicilios. Un restaurante te escribe en texto libre y desordenado pidiendo que le envíen una moto. Tu única tarea es devolver JSON con estos campos, usando null en lo que el mensaje no diga — nunca inventes un valor:
+export const EMPTY_TRIP_FIELDS: ExtractedTripFields = {
+  origenRestaurante: null,
+  direccionEntrega: null,
+  telefonoCliente: null,
+  valorACobrar: null,
+  metodoPago: null,
+};
+
+/**
+ * La memoria del pedido: lo que ya se sabía más lo que trajo el mensaje
+ * nuevo. Un dato nuevo no nulo gana (es una corrección o un dato que
+ * faltaba); un `null` nuevo NUNCA borra lo que ya se tenía. Que lo
+ * garantice el código y no el modelo: si el modelo "olvida" un campo en su
+ * respuesta, el pedido no pierde ese dato.
+ */
+export function mergeTripFields(known: ExtractedTripFields, incoming: ExtractedTripFields): ExtractedTripFields {
+  return {
+    origenRestaurante: incoming.origenRestaurante ?? known.origenRestaurante,
+    direccionEntrega: incoming.direccionEntrega ?? known.direccionEntrega,
+    telefonoCliente: incoming.telefonoCliente ?? known.telefonoCliente,
+    valorACobrar: incoming.valorACobrar ?? known.valorACobrar,
+    metodoPago: incoming.metodoPago ?? known.metodoPago,
+  };
+}
+
+/** Cuántas veces se repregunta antes de pasar el pedido a una persona. */
+export const MAX_CLARIFICATION_ATTEMPTS = 2;
+
+export const ESCALATION_MESSAGE = "Te transferiré con un asesor de la central para gestionar tu pedido.";
+export const ASSIGNED_MESSAGE = "Moto asignada. Entre 10 a 15 minutos está llegando.";
+
+export const EXTRACTION_SYSTEM_PROMPT = `Eres el asistente de despacho de una agencia de domicilios. Un restaurante te escribe por WhatsApp, en texto libre y desordenado, pidiendo una moto. Puede mandar el pedido en varios mensajes.
+
+Recibes los "Datos ya capturados" de mensajes anteriores y el "Mensaje nuevo". Devuelve SOLO este JSON, con el pedido COMPLETO hasta ahora:
 
 {
   "origenRestaurante": string | null,   // nombre del restaurante que pide el domicilio
   "direccionEntrega": string | null,    // dirección del cliente final
   "telefonoCliente": string | null,     // teléfono del cliente final, solo dígitos
   "valorACobrar": number | null,        // pesos colombianos, solo el número
-  "metodoPago": "efectivo" | "transferencia" | null
+  "metodoPago": "efectivo" | "transferencia" | null,
+  "confuso": boolean
 }
 
-No agregues texto fuera del JSON. No calcules ni corrijas nada, solo extrae lo que el mensaje dice explícitamente.`;
+Reglas:
+- Conserva los datos ya capturados. Solo cámbialos si el mensaje nuevo los corrige explícitamente.
+- Si el mensaje nuevo trae solo un dato suelto (por ejemplo, solo un número de teléfono o solo "efectivo"), asígnalo al campo que falta.
+- Nunca inventes un valor: lo que no sepas va en null.
+- "confuso": true si el restaurante se contradice sin aclarar cuál dato es el bueno, pide algo que no es un domicilio, está molesto o pide hablar con una persona. En cualquier otro caso, false.
+- No agregues texto fuera del JSON.`;

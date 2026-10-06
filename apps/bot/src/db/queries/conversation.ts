@@ -27,24 +27,23 @@ export async function upsertConversationOnInbound(phone: string, profileName: st
   return created;
 }
 
+export async function updateConversation(id: number, patch: Partial<Conversation>) {
+  await db.update(schema.conversations).set(patch).where(eq(schema.conversations.id, id));
+}
+
 export async function recordMessage(
   conversationId: number,
   role: schema.MessageRole,
   text: string,
-  extra?: { waMessageId?: string; extraction?: Record<string, unknown> },
+  extra?: { waMessageId?: string; extraction?: Conversation["draft"] },
 ) {
-  const [message] = await db
-    .insert(schema.messages)
-    .values({
-      conversationId,
-      role,
-      text,
-      waMessageId: extra?.waMessageId ?? null,
-      extraction: (extra?.extraction as never) ?? null,
-    })
-    .returning();
+  await db.insert(schema.messages).values({
+    conversationId,
+    role,
+    text,
+    waMessageId: extra?.waMessageId ?? null,
+    extraction: extra?.extraction ?? null,
+  });
 
   await db.update(schema.conversations).set({ lastMessageAt: new Date() }).where(eq(schema.conversations.id, conversationId));
-
-  return message;
 }

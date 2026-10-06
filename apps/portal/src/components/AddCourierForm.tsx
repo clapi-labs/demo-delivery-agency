@@ -1,11 +1,12 @@
 "use client";
 
-import { UserPlus } from "lucide-react";
+import { UserPlus, X } from "lucide-react";
 import { useState } from "react";
 
-import { BOGOTA_CENTER } from "@/lib/geo";
+import { CITY_CENTER } from "@/lib/geo";
 
 export function AddCourierForm({ onCreated }: { onCreated: () => void }) {
+  const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
@@ -14,47 +15,65 @@ export function AddCourierForm({ onCreated }: { onCreated: () => void }) {
     e.preventDefault();
     if (!name.trim() || !phone.trim()) return;
     setBusy(true);
-    // Coordenada aleatoria cerca del centro de Bogotá: no pedimos GPS real en
-    // el alta — el motorizado la reporta solo cuando abre su pantalla.
+    // Posición aproximada de arranque; la real la reporta su app.
     const jitter = () => (Math.random() - 0.5) * 0.06;
     await fetch("/api/couriers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-        phone,
-        lat: BOGOTA_CENTER.lat + jitter(),
-        lng: BOGOTA_CENTER.lng + jitter(),
-      }),
+      body: JSON.stringify({ name, phone, lat: CITY_CENTER.lat + jitter(), lng: CITY_CENTER.lng + jitter() }),
     });
     setName("");
     setPhone("");
     setBusy(false);
+    setOpen(false);
     onCreated();
   }
 
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="ease-ui flex h-11 items-center gap-2 rounded-xl bg-client px-4 text-sm font-semibold text-white shadow-sm can-hover:hover:brightness-110"
+      >
+        <UserPlus size={17} /> Agregar motorizado
+      </button>
+    );
+  }
+
   return (
-    <form onSubmit={submit} className="card flex items-center gap-2 p-3">
+    <form onSubmit={submit} className="card flex w-full flex-col gap-3 p-4 sm:flex-row sm:items-center">
       <input
+        autoFocus
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="Nombre del motorizado"
-        className="ease-ui min-w-0 flex-1 rounded-lg bg-surface-2 px-3 py-2 text-sm text-ink placeholder:text-ink-3 focus:outline-none"
+        placeholder="Nombre completo"
+        className="ease-ui h-11 min-w-0 flex-1 rounded-xl bg-sunken px-3.5 outline-none focus:ring-2 focus:ring-clapi/40"
       />
       <input
         value={phone}
         onChange={(e) => setPhone(e.target.value)}
-        placeholder="Teléfono (573...)"
-        className="ease-ui w-44 rounded-lg bg-surface-2 px-3 py-2 text-sm text-ink placeholder:text-ink-3 focus:outline-none"
+        inputMode="tel"
+        placeholder="Celular (3001234567)"
+        className="ease-ui h-11 rounded-xl bg-sunken px-3.5 outline-none focus:ring-2 focus:ring-clapi/40 sm:w-56"
       />
-      <button
-        type="submit"
-        disabled={busy}
-        className="ease-ui flex items-center gap-1.5 rounded-lg bg-brand px-3.5 py-2 text-sm font-semibold text-black disabled:opacity-50"
-      >
-        <UserPlus size={15} />
-        Agregar
-      </button>
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          disabled={busy || !name.trim() || !phone.trim()}
+          className="ease-ui h-11 flex-1 rounded-xl bg-client px-5 text-sm font-semibold text-white disabled:opacity-50 sm:flex-none"
+        >
+          Guardar
+        </button>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          aria-label="Cancelar"
+          className="flex h-11 w-11 items-center justify-center rounded-xl bg-sunken text-ink-3"
+        >
+          <X size={18} />
+        </button>
+      </div>
     </form>
   );
 }

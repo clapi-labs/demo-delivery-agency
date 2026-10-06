@@ -1,18 +1,18 @@
 /**
- * Zonas de referencia de Bogotá, solo para el efecto "estamos mirando el
- * GPS" en la vista de Flota — no es geocodificación real, es la celda más
- * cercana de una lista corta de centroides conocidos.
+ * Zonas de referencia de Cali, solo para el "Última zona" de Flota — no es
+ * geocodificación: es el centroide más cercano de una lista corta de barrios.
  */
 
 const ZONES: { name: string; lat: number; lng: number }[] = [
-  { name: "Chapinero", lat: 4.6514, lng: -74.0628 },
-  { name: "Usaquén", lat: 4.6947, lng: -74.0303 },
-  { name: "Centro", lat: 4.5981, lng: -74.0758 },
-  { name: "Suba", lat: 4.7558, lng: -74.0931 },
-  { name: "Kennedy", lat: 4.6283, lng: -74.1646 },
-  { name: "Engativá", lat: 4.7108, lng: -74.1157 },
-  { name: "Teusaquillo", lat: 4.6356, lng: -74.0925 },
-  { name: "Fontibón", lat: 4.6728, lng: -74.1458 },
+  { name: "San Fernando", lat: 3.4372, lng: -76.5422 },
+  { name: "Granada", lat: 3.4583, lng: -76.5322 },
+  { name: "Centro", lat: 3.4516, lng: -76.532 },
+  { name: "Ciudad Jardín", lat: 3.3609, lng: -76.5352 },
+  { name: "Chipichape", lat: 3.4764, lng: -76.5281 },
+  { name: "El Limonar", lat: 3.3962, lng: -76.5417 },
+  { name: "Tequendama", lat: 3.4224, lng: -76.5405 },
+  { name: "San Antonio", lat: 3.4469, lng: -76.5385 },
+  { name: "Pance", lat: 3.3375, lng: -76.5367 },
 ];
 
 function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
@@ -38,4 +38,4 @@ export function nearestZone(lat: number, lng: number): string {
   return best.name;
 }
 
-export const BOGOTA_CENTER = { lat: 4.6097, lng: -74.0817 };
+export const CITY_CENTER = { lat: 3.4516, lng: -76.532 };
