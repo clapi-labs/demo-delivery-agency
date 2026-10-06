@@ -40,6 +40,14 @@ export async function getThread(conversationId: number) {
     .orderBy(asc(schema.messages.id));
 }
 
+/** "Intervenir": el operador toma el chat y el bot se calla en ese número. */
+export async function takeOver(conversationId: number) {
+  await db
+    .update(schema.conversations)
+    .set({ botPaused: true, escalationReason: "Un operador tomó la conversación.", draft: null, failedAttempts: 0 })
+    .where(eq(schema.conversations.id, conversationId));
+}
+
 /** "Devolver al bot": el asesor terminó y el bot vuelve a atender ese chat. */
 export async function resumeBot(conversationId: number) {
   await db

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Bot, Check, Headset, MessagesSquare, RotateCcw } from "lucide-react";
+import { ArrowLeft, Bot, Check, Hand, Headset, MessagesSquare, RotateCcw, SendHorizontal } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { formatCOP, formatPhone, initials } from "@/lib/format";
@@ -128,10 +128,38 @@ export default function ConversacionesPage() {
 
   const selected = list.find((c) => c.id === selectedId) ?? null;
 
-  async function resume() {
+  const [draftText, setDraftText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+
+  async function act(action: "pause" | "resume") {
     if (!selected) return;
-    await fetch(`/api/conversations/${selected.id}`, { method: "POST", body: JSON.stringify({ action: "resume" }) });
+    // Optimista: el botón responde al toque, el sondeo confirma.
+    setList((prev) => prev.map((c) => (c.id === selected.id ? { ...c, botPaused: action === "pause" } : c)));
+    await fetch(`/api/conversations/${selected.id}`, { method: "POST", body: JSON.stringify({ action }) });
     loadList();
+  }
+
+  async function send(e: React.FormEvent) {
+    e.preventDefault();
+    const text = draftText.trim();
+    if (!selected || !text || sending) return;
+    setSending(true);
+    setSendError(null);
+    const res = await fetch(`/api/conversations/${selected.id}`, { method: "POST", body: JSON.stringify({ action: "send", text }) });
+    setSending(false);
+    if (res.ok) {
+      setDraftText("");
+      loadThread(selected.id);
+    } else {
+      const data = await res.json().catch(() => ({}));
+      setSendError(
+        data.reason === "no_bot"
+          ? "Falta conectar el portal con el bot (BOT_URL / INTERNAL_SECRET)."
+          : "WhatsApp rechazó el mensaje. Si este número no escribe hace más de 24 h, Meta no deja escribirle primero.",
+      );
+      loadThread(selected.id);
+    }
   }
 
   function open(id: number) {
@@ -218,12 +246,16 @@ export default function ConversacionesPage() {
                 </div>
                 {selected.botPaused ? (
                   <span className="flex items-center gap-1.5 rounded-lg bg-gold-soft px-2.5 py-1.5 text-xs font-semibold text-gold-ink">
-                    <Headset size={13} /> Asesor
+                    <Headset size={13} /> Tú atiendes
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1.5 rounded-lg bg-clapi-soft px-2.5 py-1.5 text-xs font-semibold text-clapi-ink">
-                    <span className="h-1.5 w-1.5 animate-live rounded-full bg-clapi" /> Bot activo
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => act("pause")}
+                    className="ease-ui flex h-9 items-center gap-1.5 rounded-lg bg-client px-3 text-xs font-semibold text-white shadow-sm can-hover:hover:brightness-110"
+                  >
+                    <Hand size={14} /> Intervenir
+                  </button>
                 )}
               </header>
 
@@ -231,11 +263,11 @@ export default function ConversacionesPage() {
                 <div className="flex flex-wrap items-center gap-3 border-b border-gold/30 bg-gold-soft px-4 py-3">
                   <Headset size={18} className="shrink-0 text-gold-ink" />
                   <p className="min-w-0 flex-1 text-sm text-gold-ink">
-                    <strong>El bot se apartó.</strong> {selected.escalationReason ?? "Un asesor debe tomar este pedido."}
+                    <strong>El bot está en silencio.</strong> {selected.escalationReason ?? "Un asesor atiende este chat."}
                   </p>
                   <button
                     type="button"
-                    onClick={resume}
+                    onClick={() => act("resume")}
                     className="ease-ui flex h-9 items-center gap-1.5 rounded-lg bg-surface px-3 text-xs font-semibold text-ink shadow-sm"
                   >
                     <RotateCcw size={13} /> Devolver al bot
@@ -251,6 +283,39 @@ export default function ConversacionesPage() {
                 ))}
                 <div ref={bottomRef} />
               </div>
+
+              {selected.botPaused ? (
+                <form onSubmit={send} className="border-t border-line bg-surface px-3 pb-3 pt-2 lg:px-5">
+                  {sendError && <p className="mb-2 rounded-lg bg-danger-soft px-3 py-2 text-xs text-danger">{sendError}</p>}
+                  <div className="flex items-end gap-2">
+                    <textarea
+                      value={draftText}
+                      onChange={(e) => setDraftText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          send(e);
+                        }
+                      }}
+                      rows={1}
+                      placeholder="Escribe como la central…"
+                      className="ease-ui max-h-32 min-h-11 flex-1 resize-none rounded-xl bg-sunken px-3.5 py-2.5 outline-none focus:ring-2 focus:ring-clapi/30"
+                    />
+                    <button
+                      type="submit"
+                      disabled={sending || !draftText.trim()}
+                      aria-label="Enviar"
+                      className="ease-ui flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-client text-white disabled:opacity-40"
+                    >
+                      <SendHorizontal size={18} />
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="flex items-center justify-center gap-2 border-t border-line bg-surface px-4 py-3 text-xs text-ink-3">
+                  <Bot size={14} className="text-clapi" /> El bot está atendiendo. Toca <strong className="text-ink-2">Intervenir</strong> para escribir tú.
+                </div>
+              )}
             </>
           )}
         </section>

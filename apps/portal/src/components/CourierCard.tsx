@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, MapPin, Pause, Phone, Play, Power } from "lucide-react";
+import { MapPin, MessageCircle, Pause, Phone, Play, Power, Trash2 } from "lucide-react";
 
 import { formatPhone, initials } from "@/lib/format";
 import { nearestZone } from "@/lib/geo";
@@ -17,11 +17,13 @@ export function CourierCard({
   courier,
   queuePosition,
   onChange,
+  onRemove,
 }: {
   courier: Courier;
   /** Su turno en la cola si está libre: 1 = el próximo viaje es suyo. */
   queuePosition: number | null;
   onChange: (next: Courier["status"]) => void;
+  onRemove: () => void;
 }) {
   const status = STATUS[courier.status];
   const zone = courier.lat && courier.lng ? nearestZone(courier.lat, courier.lng) : null;
@@ -69,13 +71,9 @@ export function CourierCard({
 
       <div className="flex items-center gap-1.5 text-xs text-ink-3">
         <Phone size={12} /> {formatPhone(courier.phone)}
-        <a
-          href={`/repartidor/${courier.id}`}
-          target="_blank"
-          className="ml-auto flex items-center gap-1 font-semibold text-clapi-ink can-hover:hover:underline"
-        >
-          App del motorizado <ExternalLink size={12} />
-        </a>
+        <span className="ml-auto flex items-center gap-1 font-medium text-ok">
+          <MessageCircle size={12} /> Recibe viajes por WhatsApp
+        </span>
       </div>
 
       <div className="flex gap-2">
@@ -105,6 +103,15 @@ export function CourierCard({
           className="ease-ui flex h-10 w-10 items-center justify-center rounded-xl bg-sunken text-ink-3 disabled:opacity-40 can-hover:hover:bg-danger-soft can-hover:hover:text-danger"
         >
           <Power size={15} />
+        </button>
+        <button
+          type="button"
+          disabled={courier.status === "busy"}
+          onClick={onRemove}
+          aria-label="Quitar de la flota"
+          className="ease-ui flex h-10 w-10 items-center justify-center rounded-xl bg-sunken text-ink-3 disabled:opacity-40 can-hover:hover:bg-danger-soft can-hover:hover:text-danger"
+        >
+          <Trash2 size={15} />
         </button>
       </div>
     </article>

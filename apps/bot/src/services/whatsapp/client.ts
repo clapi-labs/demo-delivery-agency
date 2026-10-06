@@ -2,9 +2,11 @@ import { env } from "@/env";
 
 /**
  * Único camino de salida hacia WhatsApp — igual que CLAPI (RN-05 de su
- * diseño). Sin ventana de 24 h todavía porque no hay tabla `conversations`
- * con el reloj de esa ventana conectada aquí aún; se agrega en cuanto el
- * bot necesite reabrir conversación fuera de la primera respuesta.
+ * diseño): el portal no le habla a Meta, le pide al bot que envíe.
+ *
+ * Meta solo deja escribirle a alguien que nos escribió en las últimas 24 h.
+ * Fuera de esa ventana el envío vuelve como `http_error` (código 131047) — no
+ * se oculta: quien llama lo registra y el portal lo muestra.
  */
 
 export type SendResult =
@@ -13,39 +15,47 @@ export type SendResult =
   | { ok: false; reason: "http_error"; status: number; body: unknown }
   | { ok: false; reason: "network_error"; error: string };
 
-function checkActive(): boolean {
-  return env.botActive;
-}
+const MAX_BUTTON_TITLE = 20;
 
-function graphUrl() {
-  return `https://graph.facebook.com/${env.whatsapp.apiVersion}/${env.whatsapp.phoneNumberId}/messages`;
-}
-
-export async function sendText(phone: string, text: string): Promise<SendResult> {
-  if (!checkActive()) return { ok: false, reason: "bot_inactive" };
+async function post(payload: Record<string, unknown>): Promise<SendResult> {
+  if (!env.botActive) return { ok: false, reason: "bot_inactive" };
 
   try {
-    const response = await fetch(graphUrl(), {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${env.whatsapp.accessToken}`,
+    const response = await fetch(
+      `https://graph.facebook.com/${env.whatsapp.apiVersion}/${env.whatsapp.phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.whatsapp.accessToken}` },
+        body: JSON.stringify({ messaging_product: "whatsapp", ...payload }),
       },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to: phone,
-        type: "text",
-        text: { body: text },
-      }),
-    });
+    );
 
     if (!response.ok) {
       const body = await response.json().catch(() => null);
+      console.error("[whatsapp] envío rechazado", response.status, JSON.stringify(body));
       return { ok: false, reason: "http_error", status: response.status, body };
     }
-
     return { ok: true };
   } catch (error) {
     return { ok: false, reason: "network_error", error: String(error) };
   }
+}
+
+export function sendText(phone: string, text: string) {
+  return post({ to: phone, type: "text", text: { body: text } });
+}
+
+/** Botones de respuesta rápida: máximo 3, títulos de 20 caracteres (Meta). */
+export function sendButtons(phone: string, text: string, buttons: { id: string; title: string }[]) {
+  return post({
+    to: phone,
+    type: "interactive",
+    interactive: {
+      type: "button",
+      body: { text },
+      action: {
+        buttons: buttons.slice(0, 3).map((b) => ({ type: "reply", reply: { id: b.id, title: b.title.slice(0, MAX_BUTTON_TITLE) } })),
+      },
+    },
+  });
 }

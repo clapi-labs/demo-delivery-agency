@@ -46,5 +46,11 @@ function normalizeOne(message: WaMessage, profileName: string | null): IncomingM
     return { ...base, kind: "text", text: message.text.body };
   }
 
+  if ("interactive" in message) {
+    const reply = message.interactive.button_reply ?? message.interactive.list_reply;
+    if (!reply) return null;
+    return { ...base, kind: "button", buttonId: reply.id, title: reply.title };
+  }
+
   return { ...base, kind: "unsupported", type: message.type };
 }

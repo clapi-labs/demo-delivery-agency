@@ -1,4 +1,4 @@
-import { updateCourierStatus } from "@/db/queries/couriers";
+import { removeCourier, updateCourierStatus } from "@/db/queries/couriers";
 
 export const dynamic = "force-dynamic";
 
@@ -7,6 +7,11 @@ const VALID_STATUSES = ["available", "busy", "paused", "offline"];
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = await request.json();
+
+  if (body.active === false) {
+    await removeCourier(Number(id));
+    return Response.json({ ok: true });
+  }
 
   if (!VALID_STATUSES.includes(body.status)) {
     return Response.json({ error: "Estado inválido" }, { status: 400 });

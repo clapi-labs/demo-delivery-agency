@@ -9,7 +9,8 @@
 
 export type PaymentMethod = "efectivo" | "transferencia";
 
-export type ExtractedTripFields = {
+/** Lo que hace falta para despachar: sin esto no sale la moto. */
+type RequiredTripFields = {
   origenRestaurante: string | null;
   direccionEntrega: string | null;
   telefonoCliente: string | null;
@@ -17,16 +18,23 @@ export type ExtractedTripFields = {
   metodoPago: PaymentMethod | null;
 };
 
-/** `Required<T>` solo quita el `?` opcional — estos campos ya son
- *  obligatorios y lo que hay que quitar es el `| null`. Sin este tipo,
- *  "completo" seguía permitiendo `null` en cada campo para TypeScript. */
-export type ResolvedTripFields = { [K in keyof ExtractedTripFields]: Exclude<ExtractedTripFields[K], null> };
+/** Las zonas viajan en la misma memoria pero NO son obligatorias: si el bot
+ *  no reconoce el barrio, el pedido sale igual con la tarifa por defecto. */
+type ZoneFields = {
+  zonaRecogida?: string | null;
+  zonaEntrega?: string | null;
+};
+
+export type ExtractedTripFields = RequiredTripFields & ZoneFields;
+
+/** "Completo": los obligatorios sin `null`, las zonas como vengan. */
+export type ResolvedTripFields = { [K in keyof RequiredTripFields]: Exclude<RequiredTripFields[K], null> } & ZoneFields;
 
 export type ExtractionResult =
   | { complete: true; fields: ResolvedTripFields }
-  | { complete: false; fields: ExtractedTripFields; missing: (keyof ExtractedTripFields)[] };
+  | { complete: false; fields: ExtractedTripFields; missing: (keyof RequiredTripFields)[] };
 
-const REQUIRED_FIELDS: (keyof ExtractedTripFields)[] = [
+const REQUIRED_FIELDS: (keyof RequiredTripFields)[] = [
   "origenRestaurante",
   "direccionEntrega",
   "telefonoCliente",
@@ -57,6 +65,8 @@ export const EMPTY_TRIP_FIELDS: ExtractedTripFields = {
   telefonoCliente: null,
   valorACobrar: null,
   metodoPago: null,
+  zonaRecogida: null,
+  zonaEntrega: null,
 };
 
 /**
@@ -73,6 +83,8 @@ export function mergeTripFields(known: ExtractedTripFields, incoming: ExtractedT
     telefonoCliente: incoming.telefonoCliente ?? known.telefonoCliente,
     valorACobrar: incoming.valorACobrar ?? known.valorACobrar,
     metodoPago: incoming.metodoPago ?? known.metodoPago,
+    zonaRecogida: incoming.zonaRecogida ?? known.zonaRecogida ?? null,
+    zonaEntrega: incoming.zonaEntrega ?? known.zonaEntrega ?? null,
   };
 }
 
@@ -80,24 +92,39 @@ export function mergeTripFields(known: ExtractedTripFields, incoming: ExtractedT
 export const MAX_CLARIFICATION_ATTEMPTS = 2;
 
 export const ESCALATION_MESSAGE = "Te transferiré con un asesor de la central para gestionar tu pedido.";
-export const ASSIGNED_MESSAGE = "Moto asignada. Entre 10 a 15 minutos está llegando.";
+export const ASSIGNED_MESSAGE = "Moto asignada. Entre 10 a 15 minutos llega el domiciliario a recoger.";
 
-export const EXTRACTION_SYSTEM_PROMPT = `Eres el asistente de despacho de una agencia de domicilios. Un restaurante te escribe por WhatsApp, en texto libre y desordenado, pidiendo una moto. Puede mandar el pedido en varios mensajes.
+/**
+ * El prompt de extracción. Recibe las zonas de la tabla de tarifas para que
+ * el modelo diga a qué barrio pertenece cada dirección ("Cra 119, Caney" →
+ * "El Caney"). La zona NO es obligatoria: si no la reconoce, el pedido sale
+ * igual con la tarifa por defecto.
+ */
+export function buildExtractionPrompt(zoneNames: string[]) {
+  const zoneList = zoneNames.length ? zoneNames.map((z) => `"${z}"`).join(", ") : "(ninguna)";
+  return `Eres el asistente de despacho de una agencia de domicilios en Cali. Un restaurante te escribe por WhatsApp, en texto libre y desordenado, pidiendo una moto. Puede mandar el pedido en varios mensajes.
 
 Recibes los "Datos ya capturados" de mensajes anteriores y el "Mensaje nuevo". Devuelve SOLO este JSON, con el pedido COMPLETO hasta ahora:
 
 {
-  "origenRestaurante": string | null,   // nombre del restaurante que pide el domicilio
+  "origenRestaurante": string | null,   // dónde se recoge, tal como lo escribió (nombre, dirección y barrio)
   "direccionEntrega": string | null,    // dirección del cliente final
   "telefonoCliente": string | null,     // teléfono del cliente final, solo dígitos
   "valorACobrar": number | null,        // pesos colombianos, solo el número
   "metodoPago": "efectivo" | "transferencia" | null,
+  "zonaRecogida": string | null,        // una de las zonas de la lista, o null
+  "zonaEntrega": string | null,         // una de las zonas de la lista, o null
   "confuso": boolean
 }
+
+Zonas de la agencia: ${zoneList}
 
 Reglas:
 - Conserva los datos ya capturados. Solo cámbialos si el mensaje nuevo los corrige explícitamente.
 - Si el mensaje nuevo trae solo un dato suelto (por ejemplo, solo un número de teléfono o solo "efectivo"), asígnalo al campo que falta.
+- "Ya está pagado", "pagó por Nequi/transferencia" o similar = "transferencia".
+- Para las zonas, mira el barrio mencionado en cada dirección y escoge la zona de la lista que corresponda, aunque esté escrita distinto ("caney" → "El Caney", "valle del lili" → "Valle del Lili"). Si no hay barrio o no está en la lista, null. Nunca inventes una zona que no esté en la lista.
 - Nunca inventes un valor: lo que no sepas va en null.
 - "confuso": true si el restaurante se contradice sin aclarar cuál dato es el bueno, pide algo que no es un domicilio, está molesto o pide hablar con una persona. En cualquier otro caso, false.
 - No agregues texto fuera del JSON.`;
+}

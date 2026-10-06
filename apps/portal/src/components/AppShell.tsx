@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, BellOff, LayoutGrid, MessagesSquare, Users, Wallet } from "lucide-react";
+import { Bell, BellOff, LayoutGrid, MessagesSquare, Tags, Users, Wallet } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -11,7 +11,8 @@ const NAV = [
   { href: "/viajes", label: "Despachos", short: "Despachos", icon: LayoutGrid },
   { href: "/conversaciones", label: "Conversaciones", short: "Chats", icon: MessagesSquare },
   { href: "/flota", label: "Flota", short: "Flota", icon: Users },
-  { href: "/arqueo", label: "Arqueo", short: "Arqueo", icon: Wallet },
+  { href: "/arqueo", label: "Finanzas", short: "Finanzas", icon: Wallet },
+  { href: "/tarifas", label: "Tarifas", short: "Tarifas", icon: Tags },
 ];
 
 function ClientLogo({ size = "md" }: { size?: "md" | "sm" }) {
@@ -125,7 +126,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main className="no-scrollbar min-h-0 flex-1 overflow-y-auto pb-tabbar lg:pb-0">{children}</main>
 
         {/* Celular y tablet: barra de navegación abajo, al alcance del pulgar. */}
-        <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+        <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
           {NAV.map(({ href, short, icon: Icon }) => {
             const active = pathname?.startsWith(href);
             return (

@@ -67,25 +67,31 @@ export async function assignNextCourier(tripId: number): Promise<{ courierId: nu
   return null;
 }
 
-/** Asigna los pendientes, el más viejo primero, hasta quedarse sin motos. */
-export async function assignPendingTrips(): Promise<number> {
+/** Asigna los pendientes, el más viejo primero, hasta quedarse sin motos.
+ *  Devuelve los ids de los viajes que acaban de recibir moto: quien llama
+ *  tiene que avisarle al motorizado y al restaurante. */
+export async function assignPendingTrips(): Promise<number[]> {
   const pending = await db
     .select({ id: trips.id })
     .from(trips)
     .where(eq(trips.status, "pending"))
     .orderBy(asc(trips.createdAt));
 
-  let assigned = 0;
+  const assigned: number[] = [];
   for (const trip of pending) {
     const result = await assignNextCourier(trip.id);
     if (!result) break;
-    assigned++;
+    assigned.push(trip.id);
   }
   return assigned;
 }
 
-/** "Entregado": cierra el viaje, libera la moto y le da el siguiente pendiente. */
-export async function completeTrip(tripId: number): Promise<boolean> {
+/**
+ * "Entregado": cierra el viaje, libera la moto y le da el siguiente pendiente.
+ * `null` si el viaje ya no estaba en ruta (un doble toque al botón, o el
+ * portal y el motorizado marcándolo a la vez) — no es un error, ya se hizo.
+ */
+export async function completeTrip(tripId: number): Promise<{ newlyAssigned: number[] } | null> {
   const now = new Date();
 
   const [trip] = await db
@@ -93,7 +99,7 @@ export async function completeTrip(tripId: number): Promise<boolean> {
     .set({ status: "delivered", updatedAt: now })
     .where(and(eq(trips.id, tripId), eq(trips.status, "en_route")))
     .returning({ id: trips.id });
-  if (!trip) return false;
+  if (!trip) return null;
 
   const [assignment] = await db
     .update(assignments)
@@ -108,6 +114,5 @@ export async function completeTrip(tripId: number): Promise<boolean> {
       .where(and(eq(couriers.id, assignment.courierId), eq(couriers.status, "busy")));
   }
 
-  await assignPendingTrips();
-  return true;
+  return { newlyAssigned: await assignPendingTrips() };
 }

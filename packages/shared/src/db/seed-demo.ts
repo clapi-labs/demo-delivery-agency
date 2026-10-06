@@ -24,19 +24,45 @@ const COURIERS = [
   { name: "Sebastián Cruz", phone: "573006667788", lat: 3.4583, lng: -76.5172 },
 ];
 
-// Restaurantes y direcciones de Cali — el cliente es Express Cali.
+/**
+ * Zonas del sur de Cali y la matriz de precios de ejemplo. Más cerca, más
+ * barato: El Caney y Valle del Lili son vecinos, Pance y Ciudad Jardín
+ * también, y Ciudad Bochalema queda al extremo.
+ */
+const ZONES = [
+  // Solo nombres de barrio: un número de calle ("cra 119") existe en varios
+  // barrios y mandaría el pedido a la zona equivocada.
+  { name: "El Caney", keywords: ["caney"] },
+  { name: "Valle del Lili", keywords: ["lili", "valle de lili"] },
+  { name: "Ciudad Jardín", keywords: ["jardin", "ciudad jardin"] },
+  { name: "Pance", keywords: ["pance"] },
+  { name: "Ciudad Bochalema", keywords: ["bochalema"] },
+];
+
+// Fila = recoge, columna = entrega, mismo orden que ZONES.
+const PRICES = [
+  [5000, 6000, 7000, 8000, 9000],
+  [6000, 5000, 6500, 7500, 8000],
+  [7000, 6500, 5000, 6000, 8500],
+  [8000, 7500, 6000, 5000, 9500],
+  [9000, 8000, 8500, 9500, 5000],
+];
+
+const DEFAULT_FARE_VALUE = 7000;
+
+// Pedidos de ejemplo entre esas zonas. `courier` es una posición en la flota.
 const DELIVERED = [
-  { courier: 0, restaurant: "Donde Lucho", address: "Calle 5 #38-20, San Fernando", value: 32000, cash: true, hoursAgo: 4.2 },
-  { courier: 1, restaurant: "Crepes Express", address: "Av. 6N #28-15, Granada", value: 58000, cash: false, hoursAgo: 3.6 },
-  { courier: 2, restaurant: "Wok to Go", address: "Carrera 100 #11-60, Ciudad Jardín", value: 41000, cash: true, hoursAgo: 3.1 },
-  { courier: 0, restaurant: "La Hamburguesería", address: "Calle 9 #4-50, San Antonio", value: 27000, cash: true, hoursAgo: 2.4 },
-  { courier: 3, restaurant: "Pizza Nostra", address: "Calle 15N #6-30, Chipichape", value: 46000, cash: false, hoursAgo: 1.8 },
-  { courier: 1, restaurant: "Donde Lucho", address: "Carrera 66 #9-35, El Limonar", value: 35000, cash: true, hoursAgo: 1.1 },
+  { courier: 0, restaurant: "Donde Lucho · Cra 83 El Caney", address: "Calle 48 #98-20, Valle del Lili", pickupZone: 0, deliveryZone: 1, value: 32000, cash: true, hoursAgo: 4.2 },
+  { courier: 1, restaurant: "Crepes Express · Pance", address: "Cra 105 #14-30, Ciudad Jardín", pickupZone: 3, deliveryZone: 2, value: 58000, cash: false, hoursAgo: 3.6 },
+  { courier: 2, restaurant: "Wok to Go · Valle del Lili", address: "Cra 98 #45-10, Ciudad Bochalema", pickupZone: 1, deliveryZone: 4, value: 41000, cash: true, hoursAgo: 3.1 },
+  { courier: 0, restaurant: "La Hamburguesería · El Caney", address: "Calle 42 #83-15, El Caney", pickupZone: 0, deliveryZone: 0, value: 27000, cash: true, hoursAgo: 2.4 },
+  { courier: 3, restaurant: "Pizza Nostra · Ciudad Jardín", address: "Cra 122 #18-40, Pance", pickupZone: 2, deliveryZone: 3, value: 46000, cash: false, hoursAgo: 1.8 },
+  { courier: 1, restaurant: "Donde Lucho · Cra 83 El Caney", address: "Calle 25 #119-35, Pance", pickupZone: 0, deliveryZone: 3, value: 35000, cash: true, hoursAgo: 1.1 },
 ];
 
 const EN_ROUTE = [
-  { courier: 2, restaurant: "Crepes Express", address: "Calle 13 #100-35, Pance", value: 52000, cash: false, minutesAgo: 9 },
-  { courier: 3, restaurant: "Wok to Go", address: "Carrera 38 #5B-12, Tequendama", value: 29000, cash: true, minutesAgo: 4 },
+  { courier: 2, restaurant: "Crepes Express · Pance", address: "Calle 36 #98-12, Valle del Lili", pickupZone: 3, deliveryZone: 1, value: 52000, cash: false, minutesAgo: 9 },
+  { courier: 3, restaurant: "Wok to Go · Valle del Lili", address: "Calle 50 #83-22, El Caney", pickupZone: 1, deliveryZone: 0, value: 29000, cash: true, minutesAgo: 4 },
 ];
 
 function code() {
@@ -55,40 +81,62 @@ export async function seedDemo() {
   // Los chats se quedan, pero sin un pedido a medio armar ni un asesor pendiente.
   await db.update(schema.conversations).set({ draft: null, failedAttempts: 0, botPaused: false, escalationReason: null });
 
-  // Flota: se reutilizan los motorizados que ya existan (por teléfono).
-  const existing = await db.select().from(schema.couriers);
-  const ids: number[] = [];
-  for (const c of COURIERS) {
-    const found = existing.find((e) => e.phone === c.phone);
-    const values = {
-      name: c.name,
-      lat: c.lat,
-      lng: c.lng,
-      status: "available" as const,
-      active: true,
-      locationUpdatedAt: new Date(),
-      lastAssignedAt: null,
-      deliveriesThisShift: 0,
-      shiftStartedAt: ago(5 * 60),
-    };
-    if (found) {
-      await db.update(schema.couriers).set(values).where(eq(schema.couriers.id, found.id));
-      ids.push(found.id);
-    } else {
-      const [row] = await db.insert(schema.couriers).values({ ...values, phone: c.phone }).returning();
-      ids.push(row.id);
+  // Zonas y tarifas (idempotente: por nombre de zona y par origen/destino).
+  const zoneIds: number[] = [];
+  for (const [i, z] of ZONES.entries()) {
+    const [row] = await db
+      .insert(schema.zones)
+      .values({ name: z.name, keywords: z.keywords, sortOrder: i })
+      .onConflictDoUpdate({ target: schema.zones.name, set: { keywords: z.keywords, sortOrder: i } })
+      .returning();
+    zoneIds.push(row.id);
+  }
+  for (let o = 0; o < ZONES.length; o++) {
+    for (let d = 0; d < ZONES.length; d++) {
+      await db
+        .insert(schema.fares)
+        .values({ originZoneId: zoneIds[o], destinationZoneId: zoneIds[d], price: PRICES[o][d] })
+        .onConflictDoUpdate({ target: [schema.fares.originZoneId, schema.fares.destinationZoneId], set: { price: PRICES[o][d] } });
     }
   }
-  // Cualquier otro motorizado creado en pruebas queda fuera de la flota.
-  for (const e of existing) {
-    if (!ids.includes(e.id)) await db.update(schema.couriers).set({ active: false }).where(eq(schema.couriers.id, e.id));
+  await db
+    .insert(schema.settings)
+    .values({ key: "default_fare", value: DEFAULT_FARE_VALUE })
+    .onConflictDoUpdate({ target: schema.settings.key, set: { value: DEFAULT_FARE_VALUE } });
+
+  // Flota: se respeta la que haya (los celulares reales que el equipo agregó
+  // en Flota). Solo si está vacía se crean los motorizados de ejemplo.
+  let fleet = await db.select().from(schema.couriers).where(eq(schema.couriers.active, true));
+  if (fleet.length === 0) {
+    fleet = await db
+      .insert(schema.couriers)
+      .values(COURIERS.map((c) => ({ ...c, status: "available" as const, locationUpdatedAt: new Date() })))
+      .returning();
   }
+  fleet.sort((a, b) => a.id - b.id);
+  const ids = fleet.map((c) => c.id);
+  for (const id of ids) {
+    await db
+      .update(schema.couriers)
+      .set({ status: "available", lastAssignedAt: null, deliveriesThisShift: 0, shiftStartedAt: ago(5 * 60) })
+      .where(eq(schema.couriers.id, id));
+  }
+  // Los viajes "en ruta" de ejemplo solo van a motorizados de ejemplo: a un
+  // celular real no se le puede dejar un viaje inventado que nunca le llegó.
+  const demoPhones = new Set(COURIERS.map((c) => c.phone));
+  const fakeIds = fleet.filter((c) => demoPhones.has(c.phone)).map((c) => c.id);
 
   const delivered = new Map<number, number>();
   const lastAt = new Map<number, Date>();
 
-  async function addTrip(t: { courier: number; restaurant: string; address: string; value: number; cash: boolean }, createdAt: Date, assignedAt: Date, deliveredAt: Date | null) {
-    const courierId = ids[t.courier];
+  async function addTrip(
+    t: { restaurant: string; address: string; pickupZone: number; deliveryZone: number; value: number; cash: boolean },
+    courierId: number,
+    createdAt: Date,
+    assignedAt: Date,
+    deliveredAt: Date | null,
+  ) {
+    const courierName = fleet.find((c) => c.id === courierId)!.name;
     const [trip] = await db
       .insert(schema.trips)
       .values({
@@ -100,6 +148,9 @@ export async function seedDemo() {
         valueToCollect: t.value,
         paymentMethod: t.cash ? "efectivo" : "transferencia",
         requiresCashReturn: t.cash,
+        deliveryFee: PRICES[t.pickupZone][t.deliveryZone],
+        pickupZone: ZONES[t.pickupZone].name,
+        deliveryZone: ZONES[t.deliveryZone].name,
         createdAt,
         updatedAt: deliveredAt ?? assignedAt,
       })
@@ -107,7 +158,7 @@ export async function seedDemo() {
     await db.insert(schema.assignments).values({
       tripId: trip.id,
       courierId,
-      courierName: COURIERS[t.courier].name,
+      courierName,
       assignedAt,
       dispatchedAt: assignedAt,
       deliveredAt,
@@ -118,11 +169,12 @@ export async function seedDemo() {
 
   for (const t of DELIVERED) {
     const created = ago(t.hoursAgo * 60);
-    await addTrip(t, created, new Date(created.getTime() + 40_000), new Date(created.getTime() + 24 * 60_000));
+    await addTrip(t, ids[t.courier % ids.length], created, new Date(created.getTime() + 40_000), new Date(created.getTime() + 24 * 60_000));
   }
-  for (const t of EN_ROUTE) {
+  const enRoute = EN_ROUTE.slice(0, fakeIds.length).map((t, i) => ({ ...t, courierId: fakeIds[(fakeIds.length - 1 - i) % fakeIds.length] }));
+  for (const t of enRoute) {
     const assigned = ago(t.minutesAgo);
-    await addTrip(t, new Date(assigned.getTime() - 30_000), assigned, null);
+    await addTrip(t, t.courierId, new Date(assigned.getTime() - 30_000), assigned, null);
   }
 
   // Contadores y turnos coherentes con el historial recién creado.
@@ -132,10 +184,11 @@ export async function seedDemo() {
       .set({ deliveriesThisShift: delivered.get(id) ?? 0, lastAssignedAt: lastAt.get(id) ?? null })
       .where(eq(schema.couriers.id, id));
   }
-  for (const t of EN_ROUTE) {
-    await db.update(schema.couriers).set({ status: "busy" }).where(eq(schema.couriers.id, ids[t.courier]));
+  for (const t of enRoute) {
+    await db.update(schema.couriers).set({ status: "busy" }).where(eq(schema.couriers.id, t.courierId));
   }
 
-  console.log(`✓ Flota: ${ids.length} motorizados (${ids.length - EN_ROUTE.length} libres)`);
-  console.log(`✓ Viajes: ${DELIVERED.length} entregados, ${EN_ROUTE.length} en ruta, 0 por asignar`);
+  console.log(`✓ Tarifas: ${ZONES.length} zonas, ${ZONES.length ** 2} precios`);
+  console.log(`✓ Flota: ${ids.length} motorizados (${ids.length - enRoute.length} libres, ${ids.length - fakeIds.length} con celular real)`);
+  console.log(`✓ Viajes: ${DELIVERED.length} entregados, ${enRoute.length} en ruta, 0 por asignar`);
 }

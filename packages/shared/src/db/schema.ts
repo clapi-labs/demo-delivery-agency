@@ -149,6 +149,12 @@ export const trips = pgTable(
 
     customerPhone: text("customer_phone").notNull(),
     valueToCollect: integer("value_to_collect").notNull(),
+    /** Lo que cobra la agencia por el domicilio: su ganancia. Sale de la
+     *  tabla de tarifas (zona de recogida × zona de entrega) y se congela al
+     *  crear el viaje — cambiar la tarifa mañana no reescribe el arqueo de hoy. */
+    deliveryFee: integer("delivery_fee").notNull().default(0),
+    pickupZone: text("pickup_zone"),
+    deliveryZone: text("delivery_zone"),
     paymentMethod: text("payment_method").notNull().$type<PaymentMethod>(),
     /** Derivado de `paymentMethod`, pero congelado: si la regla de negocio
      *  cambia mañana, un viaje de hoy no cambia de opinión retroactivamente. */
@@ -254,3 +260,43 @@ export const dispatchOffers = pgTable(
     index("dispatch_offers_pending_idx").on(t.expiresAt, t.outcome),
   ],
 );
+
+// ---------------------------------------------------------------------------
+// Tarifas por zona
+// ---------------------------------------------------------------------------
+
+/**
+ * Las zonas (barrios) que la agencia cobra distinto. `keywords` son las
+ * palabras con las que se reconoce una dirección de esa zona ("caney",
+ * "cra 83") — el modelo elige la zona, y si no la reconoce, el código busca
+ * estas palabras en el texto como respaldo.
+ */
+export const zones = pgTable("zones", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  keywords: jsonb("keywords").notNull().$type<string[]>().default([]),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
+
+/** La matriz origen × destino = precio. Una fila por par de zonas. */
+export const fares = pgTable(
+  "fares",
+  {
+    id: serial("id").primaryKey(),
+    originZoneId: integer("origin_zone_id")
+      .notNull()
+      .references(() => zones.id, { onDelete: "cascade" }),
+    destinationZoneId: integer("destination_zone_id")
+      .notNull()
+      .references(() => zones.id, { onDelete: "cascade" }),
+    price: integer("price").notNull(),
+  },
+  (t) => [uniqueIndex("fares_pair_idx").on(t.originZoneId, t.destinationZoneId)],
+);
+
+/** Ajustes sueltos de la agencia (por ahora: la tarifa cuando no se reconoce
+ *  la zona). Clave/valor para no crear una tabla por cada número. */
+export const settings = pgTable("settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+});

@@ -1,11 +1,19 @@
 import { completeTrip } from "@dispatch/shared/db";
 
+import { notifyBot } from "@/lib/bot";
+
 export const dynamic = "force-dynamic";
 
-/** "Entregado" — desde el tablero o desde la app del motorizado. La moto
- *  vuelve a la cola y, si hay pendientes, toma el siguiente de una vez. */
+/**
+ * "Entregado" marcado desde el portal — el respaldo del botón de WhatsApp
+ * del motorizado. Mismo efecto: la moto vuelve a la cola, toma el siguiente
+ * pendiente si hay, y el bot avisa a quien corresponda.
+ */
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const ok = await completeTrip(Number(id));
-  return Response.json({ ok }, { status: ok ? 200 : 409 });
+  const tripId = Number((await params).id);
+  const result = await completeTrip(tripId);
+  if (!result) return Response.json({ ok: false }, { status: 409 });
+
+  await notifyBot({ delivered: [tripId], assigned: result.newlyAssigned });
+  return Response.json({ ok: true });
 }

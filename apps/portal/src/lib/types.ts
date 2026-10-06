@@ -13,6 +13,9 @@ export type Trip = {
   valueToCollect: number;
   paymentMethod: PaymentMethod;
   requiresCashReturn: boolean;
+  deliveryFee: number;
+  pickupZone: string | null;
+  deliveryZone: string | null;
   createdAt: string;
   updatedAt: string;
   courierName: string | null;
@@ -39,7 +42,26 @@ export type SettlementRow = {
   courierId: number;
   courierName: string;
   deliveredCount: number;
-  cashCollected: number;
+  netEarnings: number;
+  cashToDeliver: number;
+};
+
+export type Settlement = {
+  netEarnings: number;
+  deliveredCount: number;
+  averageFee: number;
+  byMethod: {
+    cash: { orders: number; amount: number };
+    transfer: { orders: number; amount: number };
+  };
+  couriers: SettlementRow[];
+};
+
+export type Zone = { id: number; name: string; keywords: string[]; sortOrder: number };
+export type FareMatrix = {
+  zones: Zone[];
+  fares: { originZoneId: number; destinationZoneId: number; price: number }[];
+  defaultFare: number;
 };
 
 export type DraftFields = {

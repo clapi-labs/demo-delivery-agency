@@ -10,7 +10,11 @@ function generateTripCode(): string {
   return `D-${code}`;
 }
 
-export async function createTrip(conversationId: number, fields: ResolvedTripFields) {
+export async function createTrip(
+  conversationId: number,
+  fields: ResolvedTripFields,
+  fare: { price: number; pickupZone: string | null; deliveryZone: string | null },
+) {
   const [trip] = await db
     .insert(schema.trips)
     .values({
@@ -23,6 +27,9 @@ export async function createTrip(conversationId: number, fields: ResolvedTripFie
       valueToCollect: fields.valorACobrar,
       paymentMethod: fields.metodoPago,
       requiresCashReturn: requiresCashReturn(fields.metodoPago),
+      deliveryFee: fare.price,
+      pickupZone: fare.pickupZone,
+      deliveryZone: fare.deliveryZone,
     })
     .returning();
   return trip;

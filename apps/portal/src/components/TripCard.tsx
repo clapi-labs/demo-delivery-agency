@@ -77,6 +77,17 @@ export function TripCard({ trip, onDeliver }: { trip: Trip; onDeliver: (id: numb
         </div>
       </div>
 
+      {trip.deliveryFee > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 text-xs text-ink-3">
+          <span className="rounded-md bg-client-soft px-2 py-0.5 font-bold text-client">Domicilio {formatCOP(trip.deliveryFee)}</span>
+          {(trip.pickupZone || trip.deliveryZone) && (
+            <span>
+              {trip.pickupZone ?? "Fuera de zona"} → {trip.deliveryZone ?? "Fuera de zona"}
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-2">
         {cash ? (
           <span className="flex items-center gap-1.5 rounded-lg bg-gold-soft px-2.5 py-1.5 text-xs font-bold text-gold-ink">

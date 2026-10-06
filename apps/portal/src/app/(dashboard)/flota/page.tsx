@@ -40,6 +40,16 @@ export default function FlotaPage() {
     refresh();
   }
 
+  async function remove(id: number) {
+    setCouriers((prev) => prev.filter((c) => c.id !== id));
+    await fetch(`/api/couriers/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ active: false }),
+    });
+    refresh();
+  }
+
   const queue = queueOrder(couriers);
   const counts = {
     available: couriers.filter((c) => c.status === "available").length,
@@ -56,7 +66,7 @@ export default function FlotaPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold tracking-tight lg:text-2xl">Flota</h1>
-          <p className="text-sm text-ink-3">El próximo viaje es del turno 1</p>
+          <p className="text-sm text-ink-3">El próximo viaje es del turno 1 · cada uno lo recibe en su WhatsApp</p>
         </div>
         <AddCourierForm onCreated={refresh} />
       </div>
@@ -85,6 +95,7 @@ export default function FlotaPage() {
               courier={courier}
               queuePosition={pos >= 0 ? pos + 1 : null}
               onChange={(status) => setStatus(courier.id, status)}
+              onRemove={() => remove(courier.id)}
             />
           );
         })}

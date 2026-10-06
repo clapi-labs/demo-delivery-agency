@@ -1,4 +1,4 @@
-import { EMPTY_TRIP_FIELDS, EXTRACTION_SYSTEM_PROMPT, type ExtractedTripFields } from "@dispatch/shared";
+import { EMPTY_TRIP_FIELDS, buildExtractionPrompt, type ExtractedTripFields } from "@dispatch/shared";
 
 import { env } from "@/env";
 
@@ -10,7 +10,11 @@ export type ExtractionOutcome = { fields: ExtractedTripFields; confused: boolean
  * teléfono que faltaba). Si OpenAI falla, devuelve `failed` y el llamador
  * conserva el borrador tal cual — un error de red no puede borrar el pedido.
  */
-export async function extractTripFields(messageText: string, known: ExtractedTripFields): Promise<ExtractionOutcome> {
+export async function extractTripFields(
+  messageText: string,
+  known: ExtractedTripFields,
+  zoneNames: string[],
+): Promise<ExtractionOutcome> {
   try {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -20,7 +24,7 @@ export async function extractTripFields(messageText: string, known: ExtractedTri
         response_format: { type: "json_object" },
         temperature: 0,
         messages: [
-          { role: "system", content: EXTRACTION_SYSTEM_PROMPT },
+          { role: "system", content: buildExtractionPrompt(zoneNames) },
           {
             role: "user",
             content: `Datos ya capturados:\n${JSON.stringify(known)}\n\nMensaje nuevo del restaurante:\n${messageText}`,
@@ -48,6 +52,8 @@ export async function extractTripFields(messageText: string, known: ExtractedTri
         telefonoCliente: typeof raw.telefonoCliente === "string" && /\d{7,}/.test(raw.telefonoCliente.replace(/\D/g, "")) ? raw.telefonoCliente.replace(/\D/g, "") : null,
         valorACobrar: valor && valor > 0 ? valor : null,
         metodoPago: raw.metodoPago === "efectivo" || raw.metodoPago === "transferencia" ? raw.metodoPago : null,
+        zonaRecogida: typeof raw.zonaRecogida === "string" ? raw.zonaRecogida : null,
+        zonaEntrega: typeof raw.zonaEntrega === "string" ? raw.zonaEntrega : null,
       },
       confused: raw.confuso === true,
       failed: false,
