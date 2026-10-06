@@ -154,8 +154,8 @@ export default function ConversacionesPage() {
     } else {
       const data = await res.json().catch(() => ({}));
       setSendError(
-        data.reason === "no_bot"
-          ? "Falta conectar el portal con el bot (BOT_URL / INTERNAL_SECRET)."
+        data.reason === "no_bot" || data.reason === "bad_secret"
+          ? "El portal no está bien conectado con el bot (BOT_URL / INTERNAL_SECRET)."
           : "WhatsApp rechazó el mensaje. Si este número no escribe hace más de 24 h, Meta no deja escribirle primero.",
       );
       loadThread(selected.id);

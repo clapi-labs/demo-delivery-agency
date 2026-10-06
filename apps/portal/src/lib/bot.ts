@@ -22,7 +22,8 @@ export async function callBot(path: string, body: unknown): Promise<{ ok: boolea
       body: JSON.stringify(body),
     });
     const data = await res.json().catch(() => ({}));
-    return { ok: res.ok, reason: data?.reason };
+    // 401 = el INTERNAL_SECRET del portal no coincide con el del bot.
+    return { ok: res.ok, reason: data?.reason ?? (res.ok ? undefined : res.status === 401 ? "bad_secret" : `http_${res.status}`) };
   } catch (error) {
     return { ok: false, reason: String(error) };
   }
