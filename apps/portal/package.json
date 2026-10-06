@@ -1,0 +1,28 @@
+{
+  "name": "@dispatch/portal",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Centro de control de CLAPI Dispatch: viajes, flota y arqueo",
+  "scripts": {
+    "dev": "next dev --port 3002",
+    "build": "next build",
+    "start": "next start --port 3002",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@dispatch/shared": "*",
+    "lucide-react": "^1.47.0",
+    "motion": "^13.4.2",
+    "next": "16.3.6",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.6",
+    "tailwindcss": "^4"
+  }
+}

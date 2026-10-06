@@ -1,0 +1,188 @@
+@import "tailwindcss";
+
+/*
+ * CLAPI Dispatch — centro de control. Dark-first a propósito: esto se
+ * muestra en una sala, proyectado, y tiene que leerse como un panel de
+ * operaciones en vivo, no como un back-office de restaurante.
+ *
+ * - Neutros zinc oscuros: canvas casi negro, tarjetas zinc-900 con un
+ *   anillo de 1px al 8% en vez de sombra (la sombra no se ve sobre negro).
+ * - Acento: el mismo naranja de marca, hsl(28 91% 58%), más brillante que
+ *   en el portal claro para que siga leyéndose sobre fondo oscuro.
+ * - Estados de un viaje, un solo significado cada uno:
+ *     ámbar  = pendiente, esperando asignación (con pulso si lleva rato)
+ *     violeta = en ruta (moto asignada, en camino)
+ *     verde  = entregado
+ *     rojo   = desconectado / alerta
+ */
+
+@theme inline {
+  --font-sans: var(--nf-sans), ui-sans-serif, system-ui, sans-serif;
+  --tracking-title: -0.02em;
+
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-soft: var(--brand-soft);
+
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-idle: var(--idle);
+  --color-idle-soft: var(--idle-soft);
+  --color-route: var(--route);
+  --color-route-soft: var(--route-soft);
+
+  --color-rail: var(--rail);
+  --color-rail-fg: var(--rail-fg);
+  --color-rail-muted: var(--rail-muted);
+  --color-rail-active: var(--rail-active);
+}
+
+:root {
+  --canvas: #09090b; /* zinc-950 */
+  --surface: #18181b; /* zinc-900 */
+  --surface-2: #27272a; /* zinc-800, para pozos dentro de tarjetas */
+  --ink: #fafafa; /* zinc-50 */
+  --ink-2: #a1a1aa; /* zinc-400 */
+  --ink-3: #71717a; /* zinc-500 */
+  --line: rgb(255 255 255 / 0.08);
+  --line-strong: rgb(255 255 255 / 0.14);
+
+  --brand: hsl(28 91% 58%);
+  --brand-ink: hsl(28 95% 72%);
+  --brand-soft: hsl(28 70% 16%);
+
+  --danger: #f87171;
+  --danger-soft: #3f1d1d;
+  --warn: #fbbf24;
+  --warn-soft: #3f2d0f;
+  --ok: #34d399;
+  --ok-soft: #0f3326;
+  --idle: #71717a;
+  --idle-soft: #27272a;
+  --route: #a78bfa;
+  --route-soft: #2e2250;
+
+  --rail: #000000;
+  --rail-fg: #fafafa;
+  --rail-muted: #71717a;
+  --rail-active: #18181b;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* Tarjeta estándar: zinc-900, rounded-xl, anillo de 1px en vez de sombra. */
+@utility card {
+  background-color: var(--color-surface);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 0 0 1px var(--color-line);
+}
+
+@utility ease-ui {
+  transition-property: all;
+  transition-duration: 200ms;
+  transition-timing-function: ease-in-out;
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* El pulso de "esperando asignación" — un anillo que respira en ámbar.
+ * Con prefers-reduced-motion la regla de arriba lo deja quieto. */
+@keyframes waiting-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(251 191 36 / 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgb(251 191 36 / 0);
+  }
+}
+
+@utility animate-waiting {
+  animation: waiting-pulse 2s ease-in-out infinite;
+}
+
+/* El destello cuando el sistema asigna solo: un barrido de luz que cruza la
+ * tarjeta una vez al llegar a "En Ruta". */
+@keyframes assign-flash {
+  0% {
+    box-shadow: 0 0 0 0 rgb(167 139 250 / 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 14px rgb(167 139 250 / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(167 139 250 / 0);
+  }
+}
+
+@utility animate-assign-flash {
+  animation: assign-flash 900ms ease-out 1;
+}
+
+@keyframes live-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@utility animate-live {
+  animation: live-dot 1.6s ease-in-out infinite;
+}

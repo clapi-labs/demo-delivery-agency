@@ -11,7 +11,8 @@
   },
   "scripts": {
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "db:seed:demo": "tsx --env-file=../../.env.local src/db/seed-demo-cli.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
