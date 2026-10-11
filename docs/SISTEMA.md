@@ -19,7 +19,7 @@ Nació como un fork de CLAPI, el sistema para restaurantes (`demo-delivery-syste
 | **WhatsApp** | Número dedicado a esta demo. Meta entrega directo al bot, sin intermediarios | Meta → `<bot>/api/webhook/whatsapp` |
 | **IA** | `gpt-4o-mini` en una sola llamada por mensaje para extraer los datos | OpenAI (único costo, de centavos) |
 
-Los dos proyectos de Vercel están conectados a GitHub (`clapi-labs/demo-delivery-agency`). Cada push a `main` redespliega solo. Cómo desplegarlos: [`DESPLIEGUE_VERCEL.md`](DESPLIEGUE_VERCEL.md).
+Los dos proyectos de Vercel están conectados a GitHub (`clapi-labs/demo-clapi-dispatch`). Cada push a `main` redespliega solo. Cómo desplegarlos: [`DESPLIEGUE_VERCEL.md`](DESPLIEGUE_VERCEL.md).
 
 **Regla de arquitectura:** solo el bot habla con Meta. Cuando el portal necesita enviar un WhatsApp (respuesta de un operador o aviso de asignación), se lo pide al bot por `/api/internal/*`, protegido con `INTERNAL_SECRET`.
 

@@ -8,14 +8,14 @@ Para quien despliega el sistema en una cuenta nueva de Vercel. Son dos proyectos
 
 Se necesita:
 
-- Acceso al repo `clapi-labs/demo-delivery-agency` desde la cuenta de Vercel. Si el repo no aparece al importar, hay que darle acceso a la app de Vercel en GitHub (*Adjust GitHub App Permissions*).
+- Acceso al repo `clapi-labs/demo-clapi-dispatch` desde la cuenta de Vercel. Si el repo no aparece al importar, hay que darle acceso a la app de Vercel en GitHub (*Adjust GitHub App Permissions*).
 - Acceso al proyecto `demo-clapi-dispatch` en Infisical, entorno **Production**. Todos los valores salen de ahí; no hay que inventar ninguno.
 
 La base de datos (Neon) ya existe y ya tiene el esquema y los datos. No hay que crear ni migrar nada.
 
 ## 1. Desplegar el bot
 
-En Vercel: **Add New → Project** e importar `clapi-labs/demo-delivery-agency`.
+En Vercel: **Add New → Project** e importar `clapi-labs/demo-clapi-dispatch`.
 
 | Ajuste | Valor |
 |---|---|
